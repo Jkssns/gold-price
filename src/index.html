@@ -3,46 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <title>黄金价格</title>
-  <style>
-    body {
-      margin: 0;
-      padding: 0;
-      font-family: Arial, sans-serif;
-      background-color: rgba(0, 0, 0, 0);
-      -webkit-app-region: drag;
-      overflow: hidden;
-      user-select: none;
-    }
-
-    #container {
-      width: 60px;
-      height: 40px; /* 增加高度以容纳两个价格 */
-      color: white;
-      display: flex;
-      flex-direction: column; /* 垂直排列 */
-      justify-content: center;
-      align-items: center;
-      padding: 0;
-      box-sizing: border-box;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-      background-color: rgba(50, 50, 50, 0.9);
-    }
-
-    .price {
-      font-size: 14px;
-      color: #FFD700;
-      text-align: center;
-      padding: 1px 5px;
-      width: 100%;
-    }
-  </style>
 </head>
 <body>
-  <div id="container">
-    <div id="current-price" class="price">--</div>
-    <div id="current-price2" class="price">--</div>
-  </div>
-
+  <!-- 只用于系统托盘应用，不显示窗口内容 -->
   <script src="renderer.js"></script>
 </body>
 </html>

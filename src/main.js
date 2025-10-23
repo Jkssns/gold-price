@@ -1,135 +1,124 @@
-const { app, BrowserWindow, screen, nativeImage } = require('electron');
+const { app, BrowserWindow, screen, nativeImage, Tray, Menu, ipcMain } = require('electron');
 const path = require('path');
 
 let mainWindow;
+let tray = null;
+
 // 判断是否为开发环境
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
 
+// 创建系统托盘（使用空图标）
+function createTray() {
+  try {
+    console.log('开始创建系统托盘...');
 
-// 根据平台选择合适的图标
-function getIconPath() {
-  if (process.platform === 'darwin') {
-    return path.join(__dirname, '../logo.icns'); // macOS使用.icns格式
-  } else if (process.platform === 'win32') {
-    return path.join(__dirname, '../logo.ico'); // Windows使用.ico格式
-  } else {
-    return path.join(__dirname, '../logo.png'); // Linux等其他平台使用.png格式
+    // 使用空图标作为初始图标
+    tray = new Tray(nativeImage.createEmpty());
+    console.log('Tray对象创建成功（空图标）');
+
+    // 设置初始托盘标题
+    tray.setTitle('民：--，浙：--');
+    console.log('设置初始托盘标题');
+
+    // 设置上下文菜单
+    const contextMenu = Menu.buildFromTemplate([
+      {
+        label: '退出',
+        click: () => {
+          app.quit();
+        }
+      }
+    ]);
+
+    tray.setContextMenu(contextMenu);
+    tray.setIgnoreDoubleClickEvents(true);
+
+    console.log('系统托盘创建成功');
+    console.log('请检查屏幕右上角（macOS）或任务栏（Windows）是否有系统托盘文字显示');
+  } catch (error) {
+    console.error('创建系统托盘时出错:', error);
   }
 }
 
 // 创建主窗口
 function createMainWindow() {
-  const { width, height } = screen.getPrimaryDisplay().workAreaSize;
+  console.log('开始创建主窗口...');
 
-  // 创建浏览器窗口
+  // 创建一个隐藏的浏览器窗口
   mainWindow = new BrowserWindow({
-    width: 60,
-    height: 40,
-    frame: false,
-    roundedCorners: false,
-    transparent: true,
-    alwaysOnTop: true,
-    resizable: false,
-    
+    width: 0,
+    height: 0,
+    show: false, // 不显示窗口
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,
       enableRemoteModule: true
-    },
-    x: width - 60, // 贴右边
-    y: 0, // 靠近顶部
-    icon: getIconPath() // 根据平台设置应用图标
+    }
   });
-
-  mainWindow.visibleOnAllWorkspaces = true;
 
   // 加载应用的index.html
   mainWindow.loadFile(path.join(__dirname, 'index.html'));
-
-  // 添加自动贴边功能
-  setupSnapToEdge();
 
   // 只在开发环境下打开开发者工具
   if (isDev) {
     mainWindow.webContents.openDevTools({ mode: 'detach' });
   }
+
+  console.log('主窗口创建完成（已隐藏）');
 }
 
-// 设置自动贴边功能
-function setupSnapToEdge() {
-  // 贴边阈值（像素）
-  const SNAP_THRESHOLD = 20;
+// 监听来自渲染进程的价格更新
+ipcMain.on('price-update', (event, priceInfo) => {
+  console.log('收到价格更新:', priceInfo);
+  if (tray) {
+    // 根据涨跌情况添加箭头
+    let price1Text = priceInfo.price1;
+    let price2Text = priceInfo.price2;
 
-  // 监听窗口移动事件
-  mainWindow.on('move', () => {
-    // 获取所有显示器
-    const displays = screen.getAllDisplays();
-    const bounds = mainWindow.getBounds();
-
-    // 找出当前窗口所在的显示器
-    const currentDisplay = screen.getDisplayNearestPoint({ x: bounds.x, y: bounds.y });
-
-    let x = bounds.x;
-    let y = bounds.y;
-    let needsUpdate = false;
-
-    // 检查是否靠近当前显示器的边缘
-    const displayBounds = currentDisplay.workArea;
-
-    // 检查是否靠近左边缘
-    if (bounds.x < displayBounds.x + SNAP_THRESHOLD && bounds.x >= displayBounds.x) {
-      x = displayBounds.x;
-      needsUpdate = true;
+    if (priceInfo.change1 !== undefined) {
+      if (priceInfo.change1 > 0) {
+        price1Text = `↑${priceInfo.price1}`; // 上涨箭头
+      } else if (priceInfo.change1 < 0) {
+        price1Text = `↓${priceInfo.price1}`; // 下跌箭头
+      }
+      // 持平不加箭头
     }
 
-    // 检查是否靠近右边缘
-    if (bounds.x + bounds.width > displayBounds.x + displayBounds.width - SNAP_THRESHOLD &&
-        bounds.x + bounds.width <= displayBounds.x + displayBounds.width) {
-      x = displayBounds.x + displayBounds.width - bounds.width;
-      needsUpdate = true;
+    if (priceInfo.change2 !== undefined) {
+      if (priceInfo.change2 > 0) {
+        price2Text = `↑${priceInfo.price2}`; // 上涨箭头
+      } else if (priceInfo.change2 < 0) {
+        price2Text = `↓${priceInfo.price2}`; // 下跌箭头
+      }
+      // 持平不加箭头
     }
 
-    // 检查是否靠近上边缘
-    if (bounds.y < displayBounds.y + SNAP_THRESHOLD && bounds.y >= displayBounds.y) {
-      y = displayBounds.y;
-      needsUpdate = true;
-    }
-
-    // 检查是否靠近下边缘
-    if (bounds.y + bounds.height > displayBounds.y + displayBounds.height - SNAP_THRESHOLD &&
-        bounds.y + bounds.height <= displayBounds.y + displayBounds.height) {
-      y = displayBounds.y + displayBounds.height - bounds.height;
-      needsUpdate = true;
-    }
-
-    // 如果需要更新位置，则设置新的边界
-    if (needsUpdate) {
-      mainWindow.setBounds({ x, y, width: bounds.width, height: bounds.height });
-    }
-  });
-}
-
-// 设置应用程序图标
-if (process.platform === 'darwin') { // macOS
-  // 为macOS的Dock设置图标
-  const dockIcon = nativeImage.createFromPath(path.join(__dirname, '../logo.png'));
-  // 调整大小，使其在Dock中显示更合适
-  const resizedIcon = dockIcon.resize({ width: 128, height: 128 });
-  app.dock.setIcon(resizedIcon);
-}
+    // 只显示纯文本数字，不使用颜色
+    const title = `民：${price1Text}，浙：${price2Text}`;
+    console.log('设置托盘标题为:', title);
+    tray.setTitle(title);
+  } else {
+    console.log('托盘对象不存在');
+  }
+});
 
 // 当Electron完成初始化并准备创建浏览器窗口时调用此方法
 app.whenReady().then(() => {
-	createMainWindow();
+  console.log('Electron应用准备就绪');
+
+  // 创建系统托盘
+  createTray();
+
+  // 创建主窗口
+  createMainWindow();
 
   app.on('activate', function () {
-    // 在macOS上，当点击dock图标并且没有其他窗口打开时，
-    // 通常在应用程序中重新创建一个窗口。
-    if (BrowserWindow.getAllWindows().length === 0) createMainWindow();
+    console.log('应用激活事件');
   });
 });
 
 // 当所有窗口关闭时退出应用
 app.on('window-all-closed', function () {
+  console.log('所有窗口已关闭');
   if (process.platform !== 'darwin') app.quit();
 });

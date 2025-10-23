@@ -14,7 +14,7 @@ let lastChange2 = 0;
 function formatPrice(price) {
   if (!price) return '--';
   // 确保价格有统一的格式，保留1位小数使显示更紧凑
-  return parseFloat(price).toFixed(1);
+  return parseFloat(price).toFixed(2);
 }
 
 // 显示加载状态

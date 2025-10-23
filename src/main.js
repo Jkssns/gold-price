@@ -24,7 +24,7 @@ function createMainWindow() {
   // 创建浏览器窗口
   mainWindow = new BrowserWindow({
     width: 60,
-    height: 20,
+    height: 40,
     frame: false,
     roundedCorners: false,
     transparent: true,

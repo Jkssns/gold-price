@@ -2,12 +2,14 @@ const axios = require('axios');
 
 // DOM元素
 const currentPriceElement = document.getElementById('current-price');
+const currentPriceElement2 = document.getElementById('current-price2');
 
-// API URL
+// API URL https://api.jdjygold.com/gw/generic/hj/h5/m/latestPrice
 const API_URL = 'https://api.jdjygold.com/gw/generic/hj/h5/m/latestPrice';
-
+const API_URL2 = 'https://api.jdjygold.com/gw2/generic/jrm/h5/m/stdLatestPrice?productSku=1961543816'
 // 上一次的价格，用于比较变化
 let lastPrice = null;
+let lastPrice2 = null;
 
 // 格式化价格，确保统一长度但更紧凑
 function formatPrice(price) {
@@ -22,22 +24,28 @@ function showLoading() {
   if (!lastPrice) {
     currentPriceElement.textContent = '--';
   }
+  if (!lastPrice2) {
+    currentPriceElement2.textContent = '--';
+  }
   console.log('正在加载数据...');
 }
 
 // 显示错误状态
-function showError(message) {
+function showError(message, element) {
   // 如果有上一次的数据，保持显示，不显示错误
-  if (!lastPrice) {
-    currentPriceElement.textContent = '--';
+  if (element === currentPriceElement && !lastPrice) {
+    element.textContent = '--';
+  }
+  if (element === currentPriceElement2 && !lastPrice2) {
+    element.textContent = '--';
   }
   console.error('错误:', message);
 }
 
 // 更新UI函数
-function updateUI(data) {
+function updateUI(data, element, isSecondPrice = false) {
   if (!data || !data.resultData || !data.resultData.datas) {
-    showError('Invalid data format');
+    showError('Invalid data format', element);
     return;
   }
 
@@ -45,20 +53,24 @@ function updateUI(data) {
   const currentPrice = goldData.price;
 
   // 保存当前价格用于下次比较
-  lastPrice = currentPrice;
+  if (isSecondPrice) {
+    lastPrice2 = currentPrice;
+  } else {
+    lastPrice = currentPrice;
+  }
 
   // 更新当前价格，格式化确保长度一致
   const formattedPrice = formatPrice(currentPrice);
-  currentPriceElement.textContent = formattedPrice;
+  element.textContent = formattedPrice;
 
   // 根据涨跌设置颜色
   const changeAmount = parseFloat(goldData.upAndDownAmt);
   if (changeAmount > 0) {
-    currentPriceElement.style.color = '#F44336'; // 上涨红色
+    element.style.color = '#F44336'; // 上涨红色
   } else if (changeAmount < 0) {
-    currentPriceElement.style.color = '#4CAF50'; // 下跌绿色
+    element.style.color = '#4CAF50'; // 下跌绿色
   } else {
-    currentPriceElement.style.color = '#FFD700'; // 持平金色
+    element.style.color = '#FFD700'; // 持平金色
   }
 
   // 输出调试信息
@@ -71,15 +83,27 @@ function updateUI(data) {
   });
 }
 
-// 获取黄金价格数据
+// 获取第一个黄金价格数据
 async function fetchGoldPrice() {
   try {
     const response = await axios.get(API_URL);
-    console.log('API响应:', response.data);
-    updateUI(response.data);
+    console.log('API1响应:', response.data);
+    updateUI(response.data, currentPriceElement, false);
   } catch (error) {
-    console.error('API错误:', error);
-    showError(`Error fetching gold price: ${error.message}`);
+    console.error('API1错误:', error);
+    showError(`Error fetching gold price: ${error.message}`, currentPriceElement);
+  }
+}
+
+// 获取第二个黄金价格数据
+async function fetchGoldPrice2() {
+  try {
+    const response = await axios.get(API_URL2);
+    console.log('API2响应:', response.data);
+    updateUI(response.data, currentPriceElement2, true);
+  } catch (error) {
+    console.error('API2错误:', error);
+    showError(`Error fetching gold price: ${error.message}`, currentPriceElement2);
   }
 }
 
@@ -87,9 +111,11 @@ async function fetchGoldPrice() {
 function init() {
   // 立即获取一次数据
   fetchGoldPrice();
+  fetchGoldPrice2();
 
   // 每1秒获取一次数据
   setInterval(fetchGoldPrice, 1000);
+  setInterval(fetchGoldPrice2, 1000);
 
   console.log('初始化完成，数据将每1秒更新一次');
 }
